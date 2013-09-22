@@ -176,6 +176,7 @@ def buy(request,code,num,price,userid):
     b.save()
     u.cash -= num*price
     u.save()
+    u.log_set.create(operation=1,code=code,num=num,price=price,date_create=timezone.now()).save()
     return HttpResponse("ok")
 
 @csrf_exempt
@@ -206,5 +207,8 @@ def sell(request,code,num,price,userid):
     else:
         b.delete()
         
+    u.log_set.create(operation=0,code=code,num=num,price=price,date_create=timezone.now()).save()
+        
     u.cash += num*price
+    u.save()
     return HttpResponse("ok")
