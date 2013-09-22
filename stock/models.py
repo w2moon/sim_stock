@@ -15,7 +15,7 @@ class user(models.Model):
     
 class log(models.Model):
     id = models.AutoField(primary_key=True)
-    
+    owner = models.ForeignKey(user)
     
     operation = models.IntegerField(max_length=1)
     

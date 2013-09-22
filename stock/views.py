@@ -1,60 +1,62 @@
-"""
->>> get_stock_info("s_sh000001")
-"""
+#coding=utf8
 
 from django.views.decorators.csrf import csrf_exempt
 from django.http import HttpResponse
+from django.utils import timezone
 
 import httplib
+import json
+
+from models import user
 
 single = [
-          "name", #¹ÉÆ±Ãû³Æ
-          "today_start", #½ñÈÕ¿ªÅÌ¼Û
-          "yesterday_end", #×òÈÕÊÕÅÌ¼Û
-          "current_price", #µ±Ç°¼Û¸ñ
-          "today_highest", #½ñÈÕ×î¸ß¼Û
-          "today_lowest", #½ñÈÕ×îµÍ¼Û
-          "buy_price", #¾ºÂò¼Û
-          "sell_price", #¾ºÂô¼Û
-          "deal_num", #³É½»µÄ¹ÉÆ±Êý
-          "deal_cash", #³É½»½ð¶î
-          "buy1_num", #ÂòÒ»¹ÉÊý
-          "buy1_price", #ÂòÒ»±¨¼Û
-          "buy2_num", #Âò¶þ¹ÉÊý
-          "buy2_price", #Âò¶þ±¨¼Û
-          "buy3_num", #ÂòÈý¹ÉÊý
-          "buy3_price", #ÂòÈý±¨¼Û
-          "buy4_num", #ÂòËÄ¹ÉÊý
-          "buy4_price", #ÂòËÄ±¨¼Û
-          "buy5_num", #ÂòÎå¹ÉÊý
-          "buy5_price", #ÂòÎå±¨¼Û
-          "sell1_num", #ÂôÒ»¹ÉÊý
-          "sell1_price", #ÂôÒ»±¨¼Û
-          "sell2_num", #Âò¶þ¹ÉÊý
-          "sell2_price", #Âô¶þ±¨¼Û
-          "sell3_num", #ÂôÈý¹ÉÊý
-          "sell3_price", #ÂôÈý±¨¼Û
-          "sell4_num", #ÂôËÄ¹ÉÊý
-          "sell4_price", #ÂôËÄ±¨¼Û
-          "sell5_num", #ÂôÎå¹ÉÊý
-          "sell5_price", #ÂôÎå±¨¼Û
-          "date", #ÈÕÆÚ
-          "time"] #Ê±¼ä
+          "name", #è‚¡ç¥¨åç§°
+          "today_start", #ä»Šæ—¥å¼€ç›˜ä»·
+          "yesterday_end", #æ˜¨æ—¥æ”¶ç›˜ä»·
+          "current_price", #å½“å‰ä»·æ ¼
+          "today_highest", #ä»Šæ—¥æœ€é«˜ä»·
+          "today_lowest", #ä»Šæ—¥æœ€ä½Žä»·
+          "buy_price", #ç«žä¹°ä»·
+          "sell_price", #ç«žå–ä»·
+          "deal_num", #æˆäº¤çš„è‚¡ç¥¨æ•°
+          "deal_cash", #æˆäº¤é‡‘é¢
+          "buy1_num", #ä¹°ä¸€è‚¡æ•°
+          "buy1_price", #ä¹°ä¸€æŠ¥ä»·
+          "buy2_num", #ä¹°äºŒè‚¡æ•°
+          "buy2_price", #ä¹°äºŒæŠ¥ä»·
+          "buy3_num", #ä¹°ä¸‰è‚¡æ•°
+          "buy3_price", #ä¹°ä¸‰æŠ¥ä»·
+          "buy4_num", #ä¹°å››è‚¡æ•°
+          "buy4_price", #ä¹°å››æŠ¥ä»·
+          "buy5_num", #ä¹°äº”è‚¡æ•°
+          "buy5_price", #ä¹°äº”æŠ¥ä»·
+          "sell1_num", #å–ä¸€è‚¡æ•°
+          "sell1_price", #å–ä¸€æŠ¥ä»·
+          "sell2_num", #ä¹°äºŒè‚¡æ•°
+          "sell2_price", #å–äºŒæŠ¥ä»·
+          "sell3_num", #å–ä¸‰è‚¡æ•°
+          "sell3_price", #å–ä¸‰æŠ¥ä»·
+          "sell4_num", #å–å››è‚¡æ•°
+          "sell4_price", #å–å››æŠ¥ä»·
+          "sell5_num", #å–äº”è‚¡æ•°
+          "sell5_price", #å–äº”æŠ¥ä»·
+          "date", #æ—¥æœŸ
+          "time"] #æ—¶é—´
 
 board = [
-         "name", #Ö¸ÊýÃû³Æ
-         "current_point", #µ±Ç°µãÊý
-         "current_price", #µ±Ç°¼Û¸ñ
-         "rate", #ÕÇµøÂÊ
-         "deal_num", #³É½»Á¿£¨ÊÖ£©
-         "deal_price", #³É½»¶î£¨ÍòÔª£©
+         "name", #æŒ‡æ•°åç§°
+         "current_point", #å½“å‰ç‚¹æ•°
+         "current_price", #å½“å‰ä»·æ ¼
+         "rate", #æ¶¨è·ŒçŽ‡
+         "deal_num", #æˆäº¤é‡ï¼ˆæ‰‹ï¼‰
+         "deal_price", #æˆäº¤é¢ï¼ˆä¸‡å…ƒï¼‰
          ]
 
 import re
 
 pattern = re.compile('var hq_str_(\w+)=\"(.+)\";\n')
-def get(code):
-    conn = httplib.HTTPConnection("hq.sinajs.cn")
+def get_stock_info(code):
+    conn = httplib.HTTPConnection("hq.sinajs.cn") 
     conn.request("GET","/list="+code)
     r = conn.getresponse()
     count = 0
@@ -76,28 +78,133 @@ def get(code):
         ret[match[i][0]] = arr
     return ret
 
+def get_object(sets,param):
+        objs = sets.filter(**param)
+        if objs.count() == 0:
+            return None
+        else:
+            return objs[0]
+        
+@csrf_exempt
+def register(request,userid,pwd):
+    u = get_object(user,{'userid':userid})
+    if u == None:
+        return HttpResponse("fail")
+    
+    u = user(userid=userid,pwd=pwd,status=0,cash=100000,ip="",date_lastlogin=timezone.now(),date_create=timezone.now())
+    u.save()
+    return HttpResponse("ok")
+
+@csrf_exempt
+def login(request,userid,pwd):
+    u = get_object(user,{'userid':userid})
+    if u == None:
+        return HttpResponse("fail")
+    
+    u.date_lastlogin=timezone.now()
+    u.save()
+    return HttpResponse("ok")
 
 @csrf_exempt
 def info(request,code):
         
-    return HttpResponse("info %s" % get_stock_info(code))
+    return HttpResponse(json.dumps(get_stock_info(code)))
 
 @csrf_exempt
 def choosed(request,userid):
-    return HttpResponse("choosed")
+    u = get_object(user,{'userid':userid})
+    if u == None:
+        return HttpResponse("")
+    objs = u.watch_set.all()
+    return HttpResponse(json.dumps(get_stock_info(",".join(["%s"%(objs[i].code) for i in xrange(0,len(objs))]))))
 
 @csrf_exempt
 def stocks(request,userid):
-    return HttpResponse("stocks")
+    u = get_object(user,{'userid':userid})
+    if u == None:
+        return HttpResponse("")
+    
+    objs = u.stocks_set.all()
+    datas = get_stock_info(",".join(["%s"%(objs[i].code) for i in xrange(0,len(objs))]))
+    
+    ret = {}
+    
+    for i in xrange(0,len(objs)):
+        value = objs[i].num*datas[objs[i].code][3]
+        total = objs[i].num*objs[i].price
+        ret[objs[i].code] = [objs[i].num,objs[i].price,value,total,value-total,(value/total-1)*100] + datas[objs[i].code]
+        
+    return HttpResponse(json.dumps(ret))
 
 @csrf_exempt
 def watch(request,code,userid):
-    return HttpResponse("watch %s" % (code))
+    u = get_object(user,{'userid':userid})
+    if u == None:
+        return HttpResponse("")
+    
+    w = u.watch_set.create(code = code,date_create=timezone.now())
+    w.save()
+    return HttpResponse("ok")
 
 @csrf_exempt
 def buy(request,code,num,price,userid):
-    return HttpResponse("buy")
+    u = get_object(user,{'userid':userid})
+    if u == None:
+        return HttpResponse("")
+    
+    if num*price > u.cash:
+        return HttpResponse("cash not enough")
+    
+    info = get_stock_info(code)
+    if info == "":
+        return HttpResponse("")
+    
+    rest = num
+    for i in xrange(20,30,2):
+        if info[i+1]<=price:
+            rest -= info[i]
+    
+    if rest > 0:
+        return HttpResponse("fail")
+    
+    b = get_object(u.stocks_set,{'code':code})
+    if b == None:
+        b = u.stocks_set.create(code = code,num=num,price=price,date_create=timezone.now())
+    else:
+        b.num += num
+        b.price = (b.price + price)/2.0
+    b.save()
+    u.cash -= num*price
+    u.save()
+    return HttpResponse("ok")
 
 @csrf_exempt
 def sell(request,code,num,price,userid):
-    return HttpResponse("sell")
+    u = get_object(user,{'userid':userid})
+    if u == None:
+        return HttpResponse("")
+    
+    b = get_object(u.stocks_set,{'code':code})
+    if b == None or b.num < num:
+        return HttpResponse("num not enough")
+    
+    info = get_stock_info(code)
+    if info == "":
+        return HttpResponse("")
+    
+    rest = num
+    for i in xrange(20,30,2):
+        if info[i+1]>=price:
+            rest -= info[i]
+    
+    if rest > 0:
+        return HttpResponse("fail")
+
+    b.num -= num
+    if b.num > 0:
+        b.save()
+    else:
+        b.delete()
+        
+    u.cash += num*price
+    return HttpResponse("ok")
